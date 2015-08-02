@@ -1,0 +1,181 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+require 'panteras_api'
+require 'json'
+
+config_default = {
+  :mesos_master_hostname => 'localhost',
+  :mesos_master_port => 5050,
+  :debug => false,
+  :fqdn => nil,
+  :error_exit_code => 1
+}
+
+options = {}
+bad_news = []
+good_news = []
+
+OptionParser.new("Usage: #{$0} [options]")  do |opts|
+  opts.release =  PanterasApi::VERSION
+  
+  opts.on("-m", "--mesos-master-hostname MESOS_MASTER_HOSTNAME", "Default: #{config_default[:mesos_master_hostname]}") do |m|
+    options[:mesos_master_hostname] = m
+  end
+  
+  opts.on("-p", "--mesos-master-port MESOS_MASTER_PORT", "Default: #{config_default[:mesos_master_port]}") do |p|
+    options[:mesos_master_port] = p
+  end
+  
+  opts.on("-d", "--debug", "Default: #{config_default[:debug]}") do |d|
+    options[:debug] = d
+  end
+  
+  opts.on("-c", "--critical", "Exit with Nagios CRITICAL (code 2). Default: WARNING (#{config_default[:error_exit_code]})") do |c|
+    options[:error_exit_code] = 2
+  end
+  
+  opts.on("-f", "--fqdn FULLY_QUALIFIED_HOSTNAME", "Default: autodiscovery via gethostbyname") do |f|
+    options[:fqdn] = f
+  end
+  
+  
+end.parse!
+
+config_default[:fqdn] = Utils.fully_qualified_hostname if options[:fqdn].nil?
+config = config_default.merge!(options)
+
+### MESOS
+
+my_fqdn = config[:fqdn]
+
+puts "#" * 75 if config[:debug]
+puts "* My hostname: #{my_fqdn}" if config[:debug]
+
+begin
+  puts "* Connecting to Mesos host: #{config[:mesos_master_hostname]}:#{config[:mesos_master_port]}" if config[:debug]
+  mesos = MesosCluster.new(config[:mesos_master_hostname], config[:mesos_master_port])
+rescue SocketError, Errno::ECONNREFUSED => e
+  abort("Problem connecting to mesos host #{config[:mesos_master_hostname]}:#{config[:mesos_master_port]}: #{e.message}")
+end
+
+abort("No running mesos tasks seen on mesos master #{config[:mesos_master_hostname]}:#{config[:mesos_master_port]}") if mesos.tasks.size == 0
+
+puts "#" * 75 if config[:debug]
+puts "* Mesos tasks ids running this cluster (all slaves):" if config[:debug]
+puts mesos.tasks if config[:debug]
+
+
+puts "#" * 75 if config[:debug]
+puts "* Mesos tasks ids for tasks running on #{my_fqdn}:" if config[:debug]
+mesos_tasks = mesos.my_tasks_ids(my_fqdn).flatten
+puts mesos_tasks if config[:debug]
+  
+good_news << "#{mesos_tasks.size} mesos tasks running." if ! mesos_tasks.empty?
+  
+
+### MARATHON
+marathon = MarathonEndpoint.new(mesos.master_hostname)
+
+puts "#" * 75 if config[:debug]
+puts "* Marathon tasks on #{my_fqdn}:" if config[:debug]
+marathon_tasks = marathon.my_task_ids(my_fqdn)
+puts marathon_tasks if config[:debug]
+
+good_news << "#{marathon_tasks.size} marathon tasks running."
+
+## compare mesos tasks (source of truth) with tasks seen in marathon
+only_in_mesos = mesos_tasks - marathon_tasks
+
+## compare marathon tasks with tasks seen in marathon
+only_in_marathon = marathon_tasks - mesos_tasks
+
+if ! only_in_mesos.empty?
+  bad_news << "mesos tasks not seen in marathon: #{only_in_mesos.join(',')}"
+end
+
+if ! only_in_marathon.empty?
+  bad_news << "marathon tasks not seen in mesos: #{only_in_marathon.join(',')}"
+end
+
+### CONSUL
+consul = ConsulCluster.new(mesos.master_hostname)
+### TODO: test with paas-formatted service names
+puts "#" * 75 if config[:debug]
+puts "* Consul services for #{my_fqdn}:" if config[:debug]
+consul_services = consul.my_service_ids
+puts consul.my_services.join("\n") if config[:debug]
+
+good_news << "#{consul.my_services.size} consul services running."
+
+### set these environment variables here or in shell for testing a remote docker (ie, boot2docker)
+#ENV['DOCKER_HOST']='tcp://192.168.59.103:2376'
+#ENV['DOCKER_CERT_PATH']='/Users/jcolby/.boot2docker/certs/boot2docker-vm'
+#ENV['DOCKER_TLS_VERIFY']='1'
+
+### Compare mesos vs docker tasks
+
+docker_inspect = DockerHost.inspect
+docker_tasks = docker_inspect.collect { |d| d[:mesos_task_id] }.compact.reject { |i| i.empty? }
+docker_mesos_ids = docker_inspect.collect { |d| d[:name] }.compact.reject { |i| i.empty? }
+
+puts "#" * 75 if config[:debug]
+puts "* Docker tasks on #{my_fqdn}:" if config[:debug]
+puts docker_inspect if config[:debug]
+
+mesos_not_docker = mesos_tasks - docker_tasks
+if ! mesos_not_docker.empty?
+  bad_news << "mesos tasks not running in docker: #{mesos_not_docker.join(',')}"
+end
+
+docker_not_mesos = docker_tasks - mesos_tasks
+if ! docker_not_mesos.empty?
+  bad_news << "docker tasks not seen in mesos: #{docker_not_mesos.join(',')}"
+end
+
+good_news << "#{docker_tasks.size} docker tasks running"
+
+### Compare consul-registered tasks vs docker tasks
+docker_mesos_ids_no_panteras = docker_inspect.reject { |p| p[:name] =~ /panteras/ }.collect { |d| d[:name] }.compact.reject { |i| i.empty? }
+consul_not_docker = consul_services - docker_mesos_ids_no_panteras
+docker_not_consul = docker_mesos_ids_no_panteras - consul_services
+
+if ! consul_not_docker.empty?
+  bad_news << "consul tasks not seen in docker: #{consul_not_docker.join(',')}"
+end
+
+if ! docker_not_consul.empty?
+  bad_news << "docker tasks not seen in consul: #{docker_not_consul.join(',')}"
+end
+
+if ! bad_news.empty?
+  puts "problems on #{my_fqdn}: #{bad_news.join(' ')}"
+  exit config[:error_exit_code]  
+end
+
+puts good_news.join(' ')
+
+__END__
+
+##### MAPPING ###
+CHECKS:
+ mesos vs marathon
+ mesos vs docker
+ docker vs consul 
+
+consul (api):
+Slave Host, mesos-name (ServiceID) "paasslave46-2:mesos-c71da994-a35b-4dde-9970-d175c04da735:8080"
+
+docker inspect:
+container-id (Id)  "7caf2037e7870ca4b0c5574a9f5a2415e43999fc83a9269c0360c34007957b2b"
+mesos-name (Name)  "mesos-c71da994-a35b-4dde-9970-d175c04da735"
+mesos-task-id (ENV MESOS_TASK_ID)   "vehicle-catalog-service.49383b0b-26eb-11e5-8a45-56847afe9799"
+
+marathon API:
+mesos-task-id (TaskId): "vehicle-catalog-service.49383b0b-26eb-11e5-8a45-56847afe9799"
+
+
+mesos API:
+"id": "vehicle-catalog-service.49383b0b-26eb-11e5-8a45-56847afe9799"
+
+
