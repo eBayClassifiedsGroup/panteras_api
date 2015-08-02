@@ -1,18 +1,21 @@
 # PanterasApi
 
+A convenient api for getting information from consul, mesos, marathon, and docker in the Panteras PaaS infrastructure.
+ex
+
+## Installation
+
+    $ gem install panteras_api
+
+## mesos_marathon_consistency_check (in Extras directory)
+
 This is a program that checks services consistencies in a mesos/marathon/consul/docker PaaS infrastructure.
 
 It is intended for use together with the [Panteras](https://github.com/eBayClassifiedsGroup/PanteraS) project.
 
 **It will not work on other systems without tweaking the main program.**
 
-## Installation
-
-    $ gem install panteras_api
-
-## Usage
-
-	Usage: bin/panteras_api [options]
+	Usage: mesos_marathon_consistency_check [options]
     -m MESOS_MASTER_HOSTNAME,        Default: localhost
         --mesos-master-hostname
     -p MESOS_MASTER_PORT,            Default: 5050
