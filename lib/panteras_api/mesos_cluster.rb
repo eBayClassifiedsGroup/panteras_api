@@ -10,6 +10,7 @@ class MesosCluster
   attr_reader :state
   
   def initialize(host, port=5050)
+    @protocol = "http:"
     @host = host
     @port = port
     @master_info = "/master/redirect"
@@ -18,11 +19,12 @@ class MesosCluster
   end
 
   def parse_state
-    redirect_response = get_response_with_redirect(@host, @master_info, @port)
-    
-    if redirect_response.is_a?(URI::HTTP)
+    response = get_response_with_redirect(@host, @master_info, @port).to_s
+    response = @protocol + response if !response.include?@protocol
+    redirect_response = response
+    if URI.parse(redirect_response).kind_of?(URI::HTTP)
       if ! valid_url(redirect_response.to_s)
-        raise StandardError, "Response from http://#{@host}:#{@port}#{@master_info} is not a valid url: #{redirect_response.to_s}"
+        raise StandardError, "Response from #{@protocol}//#{@host}:#{@port}#{@master_info} is not a valid url: #{redirect_response.to_s}"
       end      
       return to_j(get_response_with_redirect(URI.join(redirect_response.to_s, @state_info)))
     end
