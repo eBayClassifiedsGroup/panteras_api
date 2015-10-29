@@ -27,6 +27,9 @@ class ConsulCluster
     services = to_j(get_response_with_redirect(@host, '/v1/catalog/services?dc=' + @dc, @port)).keys
     # exclude the consul service itself
     services.reject { |s| s.to_s == "consul" }
+    services.reject { |s| s.to_s == "consul-ui" }
+    services.reject { |s| s.to_s == "marathon" }
+    services.reject { |s| s.to_s == "mesos" }
   end
   
   def my_services(hostname=@hostname)
