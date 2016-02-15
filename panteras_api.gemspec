@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
 
   spec.summary       = %q{Ruby API library for Panteras PaaS platform.}
   spec.description   = %q{A convenient api for getting information from consul, mesos, marathon, and docker in the Panteras PaaS infrastructure.}
-  spec.homepage      = "https://github.com/joncolby/panteras_api"
+  spec.homepage      = "https://github.com/eBayClassifiedsGroup/panteras_api"
 
   spec.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
   spec.bindir        = "extra"
