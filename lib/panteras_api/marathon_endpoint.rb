@@ -29,9 +29,9 @@ class MarathonEndpoint
     app_names.collect { |n| app(n)[:tasks].select { |t| t[:host] =~ /^#{hostname}$/ }  }
   end
   
-  def my_task_ids(hostname)
+  def my_task_ids(hostname, framework = 'marathon')
     my_tasks(hostname).collect { |t| t.collect { |a| a[:id] } }.flatten
-end
+  end
   
   def task_ids
     app_names.collect { |a| tasks_ids(a) }
