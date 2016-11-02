@@ -25,9 +25,9 @@ class DockerHost
     containers.map do |c|
       inspect = self.command("docker inspect #{c[:container_id]}")[:output]
       h = to_j(inspect.join).first    
-      task_id = h[:Config][:Env].select { |env| env =~ /MESOS_TASK_ID=/ }.first
+      task_id = h[:Config][:Env].select { |env| env.upcase  =~ /MESOS_TASK_ID=/ }.first
       mesos_task_id = task_id.nil? ? '' : task_id.split(/=/)[1] 
-      { id: h[:Id], image: h[:Image], name: h[:Name][1..-1], mesos_task_id: mesos_task_id }
+      { id: h[:Id], image: h[:Image], name: h[:Name][1..-1], mesos_task_id: mesos_task_id, chronos_job: h[:Config][:Env].join(',').include?('CHRONOS_JOB_NAME=') ? true : false  }
     end
   end
   
