@@ -17,7 +17,7 @@ bad_news = []
 good_news = []
 
 OptionParser.new("Usage: #{$0} [options]")  do |opts|
-  opts.release =  PanterasApi::VERSION
+  opts.release =  '0.0.1'
   
   opts.on("-m", "--mesos-master-hostname MESOS_MASTER_HOSTNAME", "Default: #{config_default[:mesos_master_hostname]}") do |m|
     options[:mesos_master_hostname] = m
@@ -59,7 +59,7 @@ rescue SocketError, Errno::ECONNREFUSED => e
   abort("Problem connecting to mesos host #{config[:mesos_master_hostname]}:#{config[:mesos_master_port]}: #{e.message}")
 end
 
-abort("No running mesos tasks seen on mesos master #{config[:mesos_master_hostname]}:#{config[:mesos_master_port]}") if mesos.tasks.nil?
+abort("No running mesos tasks seen on mesos master #{config[:mesos_master_hostname]}:#{config[:mesos_master_port]}") if mesos.tasks('marathon').size == 0
 
 puts "#" * 75 if config[:debug]
 puts "* Mesos tasks ids running this cluster (all slaves):" if config[:debug]
@@ -68,7 +68,9 @@ puts mesos.tasks if config[:debug]
 
 puts "#" * 75 if config[:debug]
 puts "* Mesos tasks ids for tasks running on #{my_fqdn}:" if config[:debug]
-mesos_tasks = mesos.my_tasks_ids(my_fqdn).flatten
+mesos_tasks = mesos.my_tasks_ids(my_fqdn, 'marathon').flatten
+mesos_tasks = mesos_tasks + mesos.my_tasks_ids(my_fqdn, 'chronos-2.4.0').flatten
+
 puts mesos_tasks if config[:debug]
   
 good_news << "#{mesos_tasks.size} mesos tasks running." if ! mesos_tasks.empty?
@@ -79,13 +81,23 @@ marathon = MarathonEndpoint.new(mesos.master_hostname)
 
 puts "#" * 75 if config[:debug]
 puts "* Marathon tasks on #{my_fqdn}:" if config[:debug]
-marathon_tasks = marathon.my_task_ids(my_fqdn)
+marathon_tasks = marathon.my_task_ids(my_fqdn, 'marathon')
 puts marathon_tasks if config[:debug]
 
 good_news << "#{marathon_tasks.size} marathon tasks running."
 
+
+### CHRONOS
+chronos = ChronosEndpoint.new(mesos.master_hostname, 4400)
+
+puts "#" * 75 if config[:debug]
+puts "* Chrnos tasks on #{my_fqdn}:" if config[:debug]
+chronos_tasks = chronos.my_task_ids(my_fqdn, 'chronos-2.4.0')
+puts chronos_tasks  if config[:debug]
+
 ## compare mesos tasks (source of truth) with tasks seen in marathon
 only_in_mesos = mesos_tasks - marathon_tasks
+chronos_tasks.each {|chronos_task| only_in_mesos.delete_if {|mesos_task| mesos_task.match(chronos_task) }}
 
 ## compare marathon tasks with tasks seen in marathon
 only_in_marathon = marathon_tasks - mesos_tasks
@@ -98,16 +110,16 @@ if ! only_in_marathon.empty?
   bad_news << "marathon tasks not seen in mesos: #{only_in_marathon.join(',')}"
 end
 
+
 ### CONSUL
 consul = ConsulCluster.new(mesos.master_hostname)
 ### TODO: test with paas-formatted service names
 puts "#" * 75 if config[:debug]
 puts "* Consul services for #{my_fqdn}:" if config[:debug]
-#consul_services = consul.my_service_ids
-consul_services = consul.my_service_ids.reject { |p| p =~ /panteras/ }.collect { |d| d }.compact.reject   { |i| i.empty? }
+consul_services = consul.my_service_ids
 puts consul.my_services.join("\n") if config[:debug]
 
-good_news << "#{consul_services.size} consul services running."
+good_news << "#{consul.my_services.size} consul services running."
 
 ### set these environment variables here or in shell for testing a remote docker (ie, boot2docker)
 #ENV['DOCKER_HOST']='tcp://192.168.59.103:2376'
@@ -134,10 +146,11 @@ if ! docker_not_mesos.empty?
   bad_news << "docker tasks not seen in mesos: #{docker_not_mesos.join(',')}"
 end
 
+good_news << "#{docker_inspect.count { |d| d[:name] if d[:chronos_job] }} chronos task running."
 good_news << "#{docker_tasks.size} docker tasks running"
 
 ### Compare consul-registered tasks vs docker tasks
-docker_mesos_ids_no_panteras = docker_inspect.reject { |p| p[:name] =~ /panteras/ }.collect { |d| d[:name] }.compact.reject { |i| i.empty? }
+docker_mesos_ids_no_panteras = docker_inspect.reject { |p| p[:name] =~ /panteras/ }.collect { |d| d[:name] if ! d[:chronos_job] }.compact.reject { |i| i.empty? }
 consul_not_docker = consul_services - docker_mesos_ids_no_panteras
 docker_not_consul = docker_mesos_ids_no_panteras - consul_services
 
