@@ -59,7 +59,7 @@ rescue SocketError, Errno::ECONNREFUSED => e
   abort("Problem connecting to mesos host #{config[:mesos_master_hostname]}:#{config[:mesos_master_port]}: #{e.message}")
 end
 
-abort("No running mesos tasks seen on mesos master #{config[:mesos_master_hostname]}:#{config[:mesos_master_port]}") if mesos.tasks('marathon').size == 0
+abort("No running mesos tasks seen on mesos master #{config[:mesos_master_hostname]}:#{config[:mesos_master_port]}") if mesos.tasks('marathon').nil?
 
 puts "#" * 75 if config[:debug]
 puts "* Mesos tasks ids running this cluster (all slaves):" if config[:debug]
@@ -116,10 +116,11 @@ consul = ConsulCluster.new(mesos.master_hostname)
 ### TODO: test with paas-formatted service names
 puts "#" * 75 if config[:debug]
 puts "* Consul services for #{my_fqdn}:" if config[:debug]
-consul_services = consul.my_service_ids
+consul_services = consul.my_service_ids.reject { |p| p =~ /panteras/ }.collect { |d| d }.compact.reject   { |i| i.empty? }
 puts consul.my_services.join("\n") if config[:debug]
 
-good_news << "#{consul.my_services.size} consul services running."
+good_news << "#{consul_services.size} consul services running."
+
 
 ### set these environment variables here or in shell for testing a remote docker (ie, boot2docker)
 #ENV['DOCKER_HOST']='tcp://192.168.59.103:2376'
