@@ -35,7 +35,7 @@ class ConsulCluster
   end
   
   def my_service_ids
-     my_services.collect { |s| s[:ServiceID].split(/:/)[1] }
+     my_services.collect { |s| s[:ServiceID].split(/:/)[1] }.compact
   end
   
   def service(service)
