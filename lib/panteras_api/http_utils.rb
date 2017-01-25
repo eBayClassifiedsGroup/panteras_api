@@ -4,8 +4,11 @@ require 'uri'
 
 module HTTPUtils
 
-  def get_response_with_redirect(*args)
-     response = Net::HTTP.get_response(*args)
+  def get_response_with_redirect(host, request_uri, port, user='', passwd='')
+     http = Net::HTTP::new(host, port)
+     req = Net::HTTP.const_get('Get').new(request_uri)
+     req.basic_auth user,passwd
+     response = http.request(req)
      if response.is_a?(Net::HTTPRedirection)
        begin
        redirect_uri = URI.parse(response.header['location'])
@@ -16,7 +19,7 @@ module HTTPUtils
      end     
      response
   end
-  
+
   def to_j(response)
     if response.is_a? Net::HTTPResponse
       JSON.parse(response.body, :symbolize_names => true)

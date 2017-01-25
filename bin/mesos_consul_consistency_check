@@ -38,6 +38,14 @@ OptionParser.new("Usage: #{$0} [options]")  do |opts|
   opts.on("-f", "--fqdn FULLY_QUALIFIED_HOSTNAME", "Default: autodiscovery via gethostbyname") do |f|
     options[:fqdn] = f
   end
+
+  opts.on("-U", "--user MARATHON_USERNAME", "default: empty") do |user|
+    options[:marathon_username] = user
+  end
+
+  opts.on("-P", "--passwd MARATHON_PASSWORD", "default: empty") do |passwd|
+    options[:marathon_password] = passwd
+  end
   
   
 end.parse!
@@ -77,7 +85,7 @@ good_news << "#{mesos_tasks.size} mesos tasks running." if ! mesos_tasks.empty?
   
 
 ### MARATHON
-marathon = MarathonEndpoint.new(mesos.master_hostname)
+marathon = MarathonEndpoint.new(mesos.master_hostname, 8080, config[:marathon_username], config[:marathon_password])
 
 puts "#" * 75 if config[:debug]
 puts "* Marathon tasks on #{my_fqdn}:" if config[:debug]

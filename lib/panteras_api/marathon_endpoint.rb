@@ -2,21 +2,24 @@ class MarathonEndpoint
   include HTTPUtils
   include Utils
 
-  def initialize(host, port=8080)
+  def initialize(host, port=8080, user='', passwd='')
     @host = host
     @port = port
+    @user = user
+    @passwd = passwd
   end
   
   def app(app_name)
     raise ArgumentError, "Argument be a String" unless (app_name.class == String )
-    to_j(get_response_with_redirect(@host, '/v2/apps/' + app_name, @port))[:app]
+    to_j(get_response_with_redirect(@host, '/v2/apps/' + app_name, @port, @user, @passwd))[:app]
   end
   
   def all_apps
-    to_j(get_response_with_redirect(@host, '/v2/apps/', @port))[:apps]
+    to_j(get_response_with_redirect(@host, '/v2/apps/', @port, @user, @passwd))[:apps]
   end
   
   def app_names
+    raise StandardError, "Empty response from marathon", caller if all_apps.nil?
     all_apps.collect { |a| a[:id][1..-1] }
   end
   

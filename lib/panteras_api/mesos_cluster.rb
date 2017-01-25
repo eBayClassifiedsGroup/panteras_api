@@ -27,7 +27,8 @@ class MesosCluster
       if ! valid_url(redirect_response.to_s)
         raise StandardError, "Response from #{@protocol}//#{@host}:#{@port}#{@master_info} is not a valid url: #{redirect_response.to_s}"
       end      
-      return to_j(get_response_with_redirect(URI.join(redirect_response.to_s, @state_info)))
+      uri =  construct_uri redirect_response.to_s
+      return to_j(get_response_with_redirect(uri.host, @state_info, uri.port))
     end
   
   end
