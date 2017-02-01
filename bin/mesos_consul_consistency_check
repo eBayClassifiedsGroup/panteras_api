@@ -146,7 +146,7 @@ Timeout::timeout(timeout_in_seconds) do
 
   ### DOCKER
   puts "#" * 75 if config[:debug]
-  puts "* Docker"
+  puts "* Docker" if config[:debug]
   puts "#" * 75 if config[:debug]
   docker_inspect = DockerHost.inspect
   docker_tasks = docker_inspect.collect { |d| d[:mesos_task_id] }.compact.reject { |i| i.empty? }
