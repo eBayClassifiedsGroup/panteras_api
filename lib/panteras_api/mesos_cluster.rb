@@ -7,9 +7,9 @@ require 'pp'
 class MesosCluster
   include HTTPUtils
   include Utils
-  
+
   attr_reader :state
-  
+
   def initialize(host, port=5050)
     @protocol = "http:"
     @host = host
@@ -26,29 +26,29 @@ class MesosCluster
     if URI.parse(redirect_response).kind_of?(URI::HTTP)
       if ! valid_url(redirect_response.to_s)
         raise StandardError, "Response from #{@protocol}//#{@host}:#{@port}#{@master_info} is not a valid url: #{redirect_response.to_s}"
-      end      
+      end
       uri =  construct_uri redirect_response.to_s
       return to_j(get_response_with_redirect(uri.host, @state_info, uri.port))
     end
-  
+
   end
-  
+
   def master_hostname
-    state[:hostname]    
+    state[:hostname]
   end
-  
+
   def master_id
     state[:id]
   end
-  
+
   def frameworks
     state[:frameworks]
   end
-  
+
   def tasks_completed
-    state[:frameworks].collect { |f| f[:completed_tasks].collect { |t| t  } }   
+    state[:frameworks].collect { |f| f[:completed_tasks].collect { |t| t  } }
   end
-  
+
   def tasks(framework = nil)
     results = frameworks.collect do |a|
       if a[:name] == framework
@@ -57,11 +57,11 @@ class MesosCluster
     end
     results.reject { |r| r.nil? or r.length == 0 }.first
   end
-  
-  def task_ids
-    tasks.collect { |t| t[:id] }
+
+  def task_ids(framework)
+    tasks(framework).collect { |t| t[:id] } if not tasks(framework).nil?
   end
-  
+
   def my_tasks_ids(hostname, framework)
     raise ArgumentError, "missing hostname argument", caller if hostname.nil?
     new_tasks = tasks(framework)
@@ -71,23 +71,23 @@ class MesosCluster
       new_tasks = []
     end
   end
-  
+
   def resources
     state[:frameworks].collect { |f| f[:used_resources] }
   end
-  
+
   def slave_hostname_by_id(id)
     slaves.select { |s| s[:id] == id }.first[:hostname]
   end
-  
+
   def slaves
     state[:slaves].collect do |s|
       s.select { |k,v|  [:hostname, :id].include?(k)}
     end
   end
-  
+
   def to_s
     JSON.pretty_generate @state
   end
-  
+
 end
