@@ -8,7 +8,11 @@ class ChronosEndpoint
   end
 
   def all_apps
-    to_j(get_response_with_redirect(@host, '/scheduler/jobs', @port))
+    begin
+      to_j(get_response_with_redirect(@host, '/scheduler/jobs', @port))
+    rescue Errno::ECONNREFUSED => e
+      to_j('[]')
+    end
   end
 
   def my_task_ids(hostname, framework = 'chronos')
