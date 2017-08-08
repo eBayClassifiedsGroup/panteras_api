@@ -51,7 +51,7 @@ class MesosCluster
 
   def tasks(framework = nil)
     results = frameworks.collect do |a|
-      if a[:name] == framework
+      if a[:name].include? framework
         a[:tasks].collect { |t| t[:slave_hostname] = slave_hostname_by_id(t[:slave_id]) ; t }
       end
     end
@@ -64,6 +64,11 @@ class MesosCluster
 
   def my_tasks_ids(hostname, framework)
     raise ArgumentError, "missing hostname argument", caller if hostname.nil?
+    # use only the first string before "-" if the task list is empty for framework
+    # this is needed to make sure we use the right framework name for the mesos version
+    if tasks(framework).nil?
+      framework = framework.gsub(/-[^\s]+/,"")
+    end
     new_tasks = tasks(framework)
     if ! new_tasks.nil?
       new_tasks.select { |t| t[:slave_hostname] =~ /^#{hostname}$/ }.collect { |t| t[:id] }
