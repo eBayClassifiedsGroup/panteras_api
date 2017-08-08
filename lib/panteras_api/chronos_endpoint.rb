@@ -2,7 +2,7 @@ class ChronosEndpoint
   include HTTPUtils
   include Utils
 
-  def initialize(host, port=8080)
+  def initialize(host, port=4400)
     @host = host
     @port = port
   end
