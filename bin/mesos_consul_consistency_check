@@ -77,11 +77,11 @@ Timeout::timeout(timeout_in_seconds) do
   abort("No running mesos tasks seen on mesos master #{config[:mesos_master_hostname]}:#{config[:mesos_master_port]}") if mesos.tasks('marathon').nil?
   if config[:debug]
     marathon_numer = mesos.task_ids('marathon').count if not mesos.task_ids('marathon').nil?
-    chronos_number = mesos.task_ids('chronos-2.4.0').count if not mesos.task_ids('chronos-2.4.0').nil?
+    chronos_number = mesos.task_ids('chronos-config').count if not mesos.task_ids('chronos-config').nil?
     puts "Number of marathon tasks globally: #{marathon_numer}"
     puts "Number of chronos tasks globally: #{chronos_number}"
     #puts mesos.task_ids('marathon').sort
-    #puts mesos.task_ids('chronos-2.4.0').sort
+    #puts mesos.task_ids('chronos-config').sort
   end
 
 
@@ -89,7 +89,7 @@ Timeout::timeout(timeout_in_seconds) do
   puts "#" * 75 if config[:debug]
   puts "* Mesos tasks ids for tasks running on #{my_fqdn}:" if config[:debug]
   mesos_tasks = mesos.my_tasks_ids(my_fqdn, 'marathon').flatten
-  mesos_tasks = mesos_tasks + mesos.my_tasks_ids(my_fqdn, 'chronos-2.4.0').flatten
+  mesos_tasks = mesos_tasks + mesos.my_tasks_ids(my_fqdn, 'chronos-config').flatten
   puts mesos_tasks.sort if config[:debug]
   good_news << "#{mesos_tasks.size} mesos tasks running." if ! mesos_tasks.empty?
 
@@ -107,7 +107,7 @@ Timeout::timeout(timeout_in_seconds) do
   puts "#" * 75 if config[:debug]
   puts "* Chronos tasks on #{my_fqdn}:" if config[:debug]
   chronos = ChronosEndpoint.new(mesos.master_hostname, 4400)
-  chronos_tasks = chronos.my_task_ids(my_fqdn, 'chronos-2.4.0')
+  chronos_tasks = chronos.my_task_ids(my_fqdn, 'chronos-config')
   puts chronos_tasks.sort  if config[:debug]
 
   ## compare mesos tasks (source of truth) with tasks seen in marathon
