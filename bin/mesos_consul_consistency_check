@@ -49,6 +49,10 @@ OptionParser.new("Usage: #{$0} [options]")  do |opts|
     options[:marathon_password] = passwd
   end
 
+  opts.on("-e", "--exclude RegExp_PATTERN", "default: empty") do |exclude|
+    options[:exclude] = exclude
+  end
+
 
 end.parse!
 
@@ -174,6 +178,11 @@ Timeout::timeout(timeout_in_seconds) do
   good_news << "#{docker_tasks.size} docker tasks running"
 
   ### Compare consul-registered tasks vs docker tasks
+  exclude = options[:exclude]
+  if ! exclude.nil?
+    docker_inspect = docker_inspect.reject { |p| p[:mesos_task_id] =~ /#{exclude}/ }
+  end
+
   docker_mesos_ids_no_panteras = docker_inspect.reject { |p| p[:name] =~ /panteras/ }.collect { |d| d[:name] if ! d[:chronos_job] }.compact.reject { |i| i.empty? }
   consul_not_docker = consul_services - docker_mesos_ids_no_panteras
   docker_not_consul = docker_mesos_ids_no_panteras - consul_services
