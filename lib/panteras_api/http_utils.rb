@@ -1,14 +1,23 @@
 require 'json'
 require 'net/http'
 require 'uri'
+require 'zlib'
 
 module HTTPUtils
 
   def get_response_with_redirect(host, request_uri, port, user='', passwd='')
-     http = Net::HTTP::new(host, port)
-     req = Net::HTTP.const_get('Get').new(request_uri)
-     req.basic_auth user,passwd
-     response = http.request(req)
+     begin
+       retries ||= 0
+       http = Net::HTTP::new(host, port)
+       req = Net::HTTP.const_get('Get').new(request_uri)
+       req.basic_auth user,passwd
+       response = http.request(req)
+     rescue Zlib::DataError, Zlib::BufError
+       retry if (retries += 1) < 3
+     rescue Exception => e
+       raise e
+     end
+
      if response.is_a?(Net::HTTPRedirection)
        begin
        redirect_uri = URI.parse(response.header['location'])
