@@ -15,6 +15,7 @@ config_default = {
 }
 
 options = {}
+excludes = []
 bad_news = []
 good_news = []
 
@@ -50,7 +51,7 @@ OptionParser.new("Usage: #{$0} [options]")  do |opts|
   end
 
   opts.on("-e", "--exclude RegExp_PATTERN", "default: empty") do |exclude|
-    options[:exclude] = exclude
+    excludes << exclude
   end
 
 
@@ -137,6 +138,10 @@ Timeout::timeout(timeout_in_seconds) do
   puts "* Consul registered mesos services for #{my_fqdn}:" if config[:debug]
   consul = ConsulCluster.new(mesos.master_hostname)
   consul_services = consul.my_service_ids.reject { |p| p =~ /panteras/ }.collect { |d| d }.compact.reject   { |i| i.empty? }
+  excludes.each { |exclude|
+    consul_services = consul_services.reject { |p| p =~ /#{exclude}/ }
+  }
+
   #puts consul.my_services.join("\n") if config[:debug]
   puts consul_services.sort if config[:debug]
   good_news << "#{consul_services.size} consul services running."
@@ -178,10 +183,11 @@ Timeout::timeout(timeout_in_seconds) do
   good_news << "#{docker_tasks.size} docker tasks running"
 
   ### Compare consul-registered tasks vs docker tasks
-  exclude = options[:exclude]
-  if ! exclude.nil?
+
+  excludes.each { |exclude|
     docker_inspect = docker_inspect.reject { |p| p[:mesos_task_id] =~ /#{exclude}/ }
-  end
+    docker_inspect = docker_inspect.reject { |p| p[:name] =~ /#{exclude}/ }
+  }
 
   docker_mesos_ids_no_panteras = docker_inspect.reject { |p| p[:name] =~ /panteras/ }.collect { |d| d[:name] if ! d[:chronos_job] }.compact.reject { |i| i.empty? }
   consul_not_docker = consul_services - docker_mesos_ids_no_panteras
