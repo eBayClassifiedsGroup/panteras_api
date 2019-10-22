@@ -141,7 +141,7 @@ Timeout::timeout(timeout_in_seconds) do
   ### CONSUL
   puts "#" * 75 if config[:debug]
   puts "* Consul registered mesos services for #{my_fqdn}:" if config[:debug]
-  consul = ConsulCluster.new(mesos.master_hostname)
+  consul = ConsulCluster.new('localhost')
   consul_services = consul.my_service_ids.reject { |p| p =~ /panteras/ }.collect { |d| d }.compact.reject   { |i| i.empty? }
   excludes.each { |exclude|
     consul_services = consul_services.reject { |p| p =~ /#{exclude}/ }
