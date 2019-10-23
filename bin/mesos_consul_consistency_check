@@ -94,6 +94,17 @@ Timeout::timeout(timeout_in_seconds) do
     #puts mesos.task_ids('chronos-config').sort
   end
 
+  ### MARATHON
+  puts "#" * 75 if config[:debug]
+  puts "* Marathon tasks on #{my_fqdn}:" if config[:debug]
+  marathon = MarathonEndpoint.new(mesos.master_hostname, 8080, config[:marathon_username], config[:marathon_password])
+  if ! marathon.deployments.empty?
+    puts "Deployment in progess"
+    exit 0
+  end
+  marathon_tasks = marathon.my_task_ids(my_fqdn, 'marathon')
+  puts marathon_tasks.sort if config[:debug]
+  good_news << "#{marathon_tasks.size} marathon tasks running."
 
   ## MESOS LOCAL
   puts "#" * 75 if config[:debug]
@@ -102,16 +113,6 @@ Timeout::timeout(timeout_in_seconds) do
   mesos_tasks = mesos_tasks + mesos.my_tasks_ids(my_fqdn, 'chronos-config').flatten
   puts mesos_tasks.sort if config[:debug]
   good_news << "#{mesos_tasks.size} mesos tasks running." if ! mesos_tasks.empty?
-
-
-  ### MARATHON
-  puts "#" * 75 if config[:debug]
-  puts "* Marathon tasks on #{my_fqdn}:" if config[:debug]
-  marathon = MarathonEndpoint.new(mesos.master_hostname, 8080, config[:marathon_username], config[:marathon_password])
-  marathon_tasks = marathon.my_task_ids(my_fqdn, 'marathon')
-  puts marathon_tasks.sort if config[:debug]
-  good_news << "#{marathon_tasks.size} marathon tasks running."
-
 
   ### CHRONOS
   puts "#" * 75 if config[:debug]

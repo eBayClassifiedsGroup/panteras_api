@@ -17,7 +17,11 @@ class MarathonEndpoint
   def all_apps
     to_j(get_response_with_redirect(@host, '/v2/apps/', @port, @user, @passwd))[:apps]
   end
-  
+
+  def deployments
+    to_j(get_response_with_redirect(@host, '/v2/deployments', @port, @user, @passwd))
+  end
+
   def app_names
     raise StandardError, "Empty response from marathon", caller if all_apps.nil?
     all_apps.collect { |a| a[:id][1..-1] }
