@@ -15,7 +15,7 @@ class MesosCluster
     @host = host
     @port = port
     @master_info = "/master/redirect"
-    @state_info = "/state.json"
+    @state_info = "/master/state"
     @state = parse_state
   end
 

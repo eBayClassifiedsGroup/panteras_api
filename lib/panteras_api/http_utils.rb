@@ -12,7 +12,7 @@ module HTTPUtils
        req = Net::HTTP.const_get('Get').new(request_uri)
        req.basic_auth user,passwd
        response = http.request(req)
-     rescue Zlib::DataError, Zlib::BufError
+     rescue Zlib::DataError, Zlib::BufError, Net::OpenTimeout
        retry if (retries += 1) < 3
      rescue Exception => e
        raise e
